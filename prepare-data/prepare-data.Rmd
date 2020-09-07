@@ -1,0 +1,108 @@
+---  
+title: 'Contextual bandit example - data preparation'
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(knitr)
+library(tidyverse)
+library(ggthemes)
+```
+
+
+```{r define_functions}
+get_summary_results <- function(data){
+  data %>% 
+    group_by(choice) %>%
+	  summarise(n = n(),
+		sum_reward = sum(reward),
+		mean_reward = mean(reward),
+		error_min = qbeta(0.025, 1 + sum_reward, 1 + n - sum_reward),
+		error_max = qbeta(0.975, 1 + sum_reward, 1 + n - sum_reward),
+		.groups = 'drop') %>% 
+    mutate(choice = choice %>% as.factor())
+}
+
+
+plot_summary_results <- function(data){
+  data %>% 
+    ggplot(aes(x = choice, y = mean_reward)) +
+    geom_point() +
+    geom_errorbar(aes(ymin = error_min, ymax = error_max), width = 0.1) +
+    theme_fivethirtyeight() + 
+    theme(axis.title = element_text()) +
+    scale_x_discrete(name = 'Choice') +
+    scale_y_continuous(name = 'Success rate', labels = scales::percent)
+}
+
+
+get_summary_table <- function(data){
+  data %>% 
+    summarise(n = n(), .groups = 'drop') %>% 
+    mutate(prop = n / sum(n)) %>% 
+    kable(format = 'markdown', digits = 3)
+}
+```
+
+## Introduction
+Here, we will use doubly robust offline evaluation to compare various bandit policies (A/B testing, MAB, CB). The dataset used here is from the ["Machine Learning for Personalization" course](http://www.cs.columbia.edu/~jebara/6998/)
+
+## Raw data
+The raw data contains 10k rows with a choice (from 10 options), a binary reward, and 100 context features.
+
+```{r load_data, message=FALSE}
+url <- 'http://d1ie9wlkzugsxr.cloudfront.net/data_cmab_basic/dataset.txt'
+
+names <- c('choice', 'reward', str_c('x', seq(1:100)), 'empty_col')
+
+raw_data <- read_delim(url, delim = ' ', col_names = names) %>% select(-empty_col)
+```
+
+
+```{r plot_raw_data}
+results1 <- raw_data %>%
+	group_by(choice) %>%
+  get_summary_results()
+
+results1 %>% plot_summary_results()
+
+raw_data %>% 
+  group_by(choice) %>% 
+  get_summary_table()
+  
+raw_data %>% 
+  group_by(reward) %>% 
+  get_summary_table()
+```
+
+## Data for simulation
+However, in this example, we will only consider observations involving arms 6-10 (4972 rows), which we rename as arms 1-5.
+```{r}
+data <- raw_data %>%
+  filter(choice %in% seq(6, 10)) %>% 
+  mutate(choice = choice - 5) %>% 
+  mutate(t = 1:n())
+
+data %>% dim()
+```
+
+```{r plot_data}
+results <- data %>%
+	group_by(choice) %>%
+	get_summary_results()
+
+results %>% plot_summary_results()
+ 
+data %>% 
+  group_by(choice) %>% 
+  get_summary_table()
+
+data %>% 
+  group_by(reward) %>% 
+  get_summary_table()
+```
+
+```{r output_data}
+data %>% write_csv('../data.csv')
+```
