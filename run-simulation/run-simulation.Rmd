@@ -25,15 +25,16 @@ model_f_dm <- function(arm){
   }
 
 predict_arm <- function(model){
-  predict(model, data, type = "response")
+  predict(model, data, type = 'response')
 	}
 ```
 
 
-## Required inputs
+## Introduction
 We will replay the `EpsilonFirstPolicy` (A/B testing), `EpsilonGreedyPolicy` (MAB)
 , and `LinUCBDisjointPolicy` (CB) policies over this data using the `OfflineDoublyRobustBandit`.
 
+## Required inputs
 However, the `OfflineDoublyRobustBandit` requires:
 
 1. Fitting a model to the data, as in the direct method
@@ -46,13 +47,13 @@ We fit a logistic regression to each arm, and use it to produce a predicted rewa
 ```{r fit_dm_model, include=FALSE}
 context_cols <- data %>% select(starts_with('x')) %>% names()
 
-f_dm1 <- as.formula(paste("reward ~", paste(context_cols, collapse = "+")))
+f_dm1 <- as.formula(paste('reward ~', paste(context_cols, collapse = '+')))
 
 model_arms <- arms %>% map(model_f_dm)
 
 r_data <- model_arms %>% map(predict_arm) %>% bind_cols()
 
-colnames(r_data) <- paste0("r", (1:max(arms)))
+colnames(r_data) <- paste0('r', (1:max(arms)))
 
 data_dm <- data %>% bind_cols(r_data)
 ```
@@ -69,9 +70,9 @@ We could fit a model to predict arm probabilities, but for now we'll just defaul
 ```{r}
 data_dr <- data_dm
 
-f_dr <- as.formula(paste("reward ~ choice | ", 
-                         paste(context_cols, collapse = " + "), " | ",
-                         paste(colnames(r_data), collapse = " + ")))
+f_dr <- as.formula(paste('reward ~ choice | ', 
+                         paste(context_cols, collapse = ' + '), ' | ',
+                         paste(colnames(r_data), collapse = ' + ')))
 
 bandit_dr <- OfflineDoublyRobustBandit$new(formula = f_dr, data = data_dr)
 ```
@@ -136,7 +137,16 @@ agg_choices %>%
 
 ### Cumulative reward
 ```{r}
-plot(history, type = "cumulative",
-	rate = TRUE, regret = FALSE, legend_position = "bottomright", disp = "ci")
+plot(history, type = 'cumulative',
+	rate = TRUE, regret = FALSE, legend_position = 'bottomright', disp = 'ci')
 ```
 
+```{r sanity_check, echo=FALSE}
+history_df %>%
+  filter(t == 1) %>% 
+  group_by(agent) %>% 
+  summarise(n = n()) %>% 
+  kable()
+
+history_df %>% glimpse()
+```
